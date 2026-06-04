@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>狗皇 · DOG KOF</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="frame">
+    <canvas id="game" width="960" height="540"></canvas>
+
+    <!-- Start screen -->
+    <div id="startScreen" class="overlay">
+      <h1 class="logo">狗 皇<span class="sub">DOG&nbsp;KOF</span></h1>
+      <p class="tagline">看起来是拳皇 · 实际上在针对你</p>
+      <div class="controls">
+        <div class="ctrl-col">
+          <h3>移动</h3>
+          <p><b>A / D</b> 走 · <b>W</b> 跳 · <b>S</b> 蹲</p>
+          <p><b>双击 A/D</b> 冲刺 · 远离对手=防御</p>
+        </div>
+        <div class="ctrl-col">
+          <h3>攻击</h3>
+          <p><b>J</b> 轻拳 · <b>K</b> 重拳</p>
+          <p><b>U</b> 轻脚 · <b>I</b> 重脚 · <b>H</b> 投技</p>
+        </div>
+        <div class="ctrl-col">
+          <h3>必杀</h3>
+          <p>波动拳：<b>↓ → + J</b></p>
+          <p>升龙拳：<b>→ ↓ → + K</b></p>
+        </div>
+      </div>
+      <button id="startBtn">开 始 受 难</button>
+      <p class="warn">⚠ 本游戏会利用你的格斗游戏经验背刺你。越熟练，死得越惨。</p>
+    </div>
+
+    <!-- Round / KO banners -->
+    <div id="banner" class="banner hidden"></div>
+
+    <!-- End screen -->
+    <div id="endScreen" class="overlay hidden">
+      <h1 id="endTitle">YOU WIN</h1>
+      <p id="endSub"></p>
+      <div id="statline"></div>
+      <button id="againBtn">再 来 一 把</button>
+    </div>
+  </div>
+  <p class="hint">提示：把音量开大，叫出声更好玩。键盘操作。</p>
+
+  <script src="game.js"></script>
+</body>
+</html>
