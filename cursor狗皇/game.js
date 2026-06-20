@@ -74,8 +74,11 @@ window.addEventListener("keyup", (e) => {
   const m = KEYMAP[(e.key || "").toLowerCase()];
   if (m) Keys[m] = false;
 });
-// 窗口失焦时清空所有按键，防止卡键（失焦期间 keyup 不会触发）
-window.addEventListener("blur", () => { for (const k in Keys) Keys[k] = false; });
+// 窗口失焦时清空按键状态，避免切回窗口时误触发一次攻击
+window.addEventListener("blur", () => {
+  for (const k in Keys) Keys[k] = false;
+  for (const k in Pressed) Pressed[k] = false;
+});
 
 /* ------------------------------ helpers ------------------------------- */
 const rnd = (a, b) => a + Math.random() * (b - a);
@@ -143,6 +146,7 @@ class Fighter {
     this.stun = 0; this.grounded = true;
     this.blocking = false; this.flash = 0;
     this.dragonCount = 0; this.cursed = false;
+    this.revivedOnce = false;
     this.dashCD = 0; this.lastTap = { left: -99, right: -99 };
     this.taunt = 0;        // fishing taunt timer
     this.combo = 0; this.comboTimer = 0;
@@ -177,6 +181,11 @@ class Fighter {
   startMove(name) {
     const m = MOVES[name];
     if (!m) return;
+    // 超必杀真正发动时才扣气，避免硬直/被覆盖时白扣
+    if (name === "super") {
+      if (this.meter < 100) return;
+      this.meter = 0;
+    }
     // 升龙诅咒 — only the human player is cursed for spamming reversals.
     if (name === "dragon" && this.isPlayer) {
       this.dragonCount++;
@@ -184,6 +193,7 @@ class Fighter {
     }
     this.move = m; this.moveName = name; this.timer = 0; this.moveHit = false;
     this.state = "attack";
+    if (this.grounded) this.vx = 0; // 地面出招时清掉水平速度，防止走路/冲刺滑进攻击
     if (m.rise) { this.vy = -7; this.grounded = false; }
     if (m.proj) { /* spawned during active */ }
     SFX[m.sfx] && SFX[m.sfx]();
@@ -214,6 +224,7 @@ class Fighter {
     if (m.launch) { this.vy = -m.launch; this.grounded = false; this.state = "launched"; this.bounced = false; }
     else { this.state = "hurt"; }
     this.move = null;
+    this.combo = 0; // 挨打后自己的连击数归零
     SFX.hurt();
     spawnSpark(this.cx, this.cy, this.color, 10);
     addShake(m.dmg * 0.4);
@@ -256,8 +267,9 @@ class Fighter {
         // block if holding away from opponent —— 仍可后撤步，不再被钉在原地
         if (dir === this.back && !cmd.attackThisFrame) {
           this.vx = dir * (cmd.dash ? 6 : 2.4);
-          this.state = "block"; this.blocking = true;
-        } else {
+          this.state = cmd.down ? "crouch" : "block";
+          this.blocking = true;
+        } else if (!cmd.attackThisFrame) {
           this.vx = dir * (cmd.dash ? 7.5 : 3.2);
           this.state = cmd.dash ? "dash" : "walk";
         }
@@ -719,9 +731,8 @@ function buildPlayerCmd() {
     throw: Pressed.throw,
     super: Pressed.super && player.meter >= 100,
     special,
-    attackThisFrame: !!(Pressed.lp || Pressed.hp || Pressed.lk || Pressed.hk || Pressed.throw),
+    attackThisFrame: !!(Pressed.lp || Pressed.hp || Pressed.lk || Pressed.hk || Pressed.throw || Pressed.super),
   };
-  if (cmd.super) player.meter = 0;
   // stats
   if (Pressed.up) stats.jumps++;
   return cmd;
@@ -741,8 +752,10 @@ function resolveHits() {
         // meter gain
         att.meter = clamp(att.meter + att.move.meter, 0, 100);
         def.meter = clamp(def.meter + 2, 0, 100);
-        if (att.isPlayer && def.hp < before) stats.hits++;
-        if (att.isPlayer && def.state === "block") stats.blocks++;
+        if (att.isPlayer) {
+          if (def.state === "block") stats.blocks++;
+          else if (def.hp < before) stats.hits++;
+        }
         // dog learns
         if (def === dog && att.isPlayer) { /* nothing */ }
       }
@@ -914,8 +927,8 @@ function poseFor(f) {
     armX = 8 * t; armY = -14 * t; guardX = 2; guardY = -10 * t; bodyRot = 0.09 * t;
   }
 
-  if (f.state === "block") {
-    // 格挡：双臂收拢护面
+  if (f.state === "block" || (f.state === "crouch" && f.blocking)) {
+    // 格挡或蹲防时双臂收拢护面
     armX = -14; armY = -10; guardX = -4; guardY = -8; bodyRot = -0.06;
   }
 
